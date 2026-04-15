@@ -1,4 +1,14 @@
 import socket
+from cryptography.fernet import Fernet
+key=412341234124
+def encrypt_message(message):
+    f = Fernet('RTTdwODdzd3mpPgUSIjSvsYrmOKrQQK8bkFRIddV-pc=')
+    return f.encrypt(message.encode()).decode()
+
+# Расшифровка
+def decrypt_message(encrypted_text):
+    f = Fernet('RTTdwODdzd3mpPgUSIjSvsYrmOKrQQK8bkFRIddV-pc=')
+    return f.decrypt(encrypted_text.encode()).decode()
 
 def find_server():
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -37,8 +47,8 @@ def main():
     while True:
         choice = input("1-SAVE 2-GET 3-EXIT > ").strip().lower()
         if choice in ('1','save'):
-            email = input("email/service: ")
-            pwd = input("password: ")
+            email = encrypt_message(input("email/service: "))
+            pwd = encrypt_message(input("password: "))
             login = input("login id: ")
             full_msg = f"SAVE {email} {pwd}; {login}"
             send_request(server_ip, full_msg)
