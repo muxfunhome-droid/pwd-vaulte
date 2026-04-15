@@ -1,5 +1,12 @@
-*
-!.gitignore
-!client.py
-!server.py
-!README.md
+build/
+dist/
+*.spec
+key_generator.py
+plan.md
+vault_storage.db
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+
