@@ -1,14 +1,35 @@
 import socket
 from cryptography.fernet import Fernet
-key=412341234124
+import os
+
+KEY_FILE = '.key'
+
+def load_or_generate_key():
+    # Проверяем, существует ли файл
+    if os.path.exists(KEY_FILE):
+        with open(KEY_FILE, "rb") as f:
+            return f.read()
+    else:
+        # Генерируем новый ключ
+        key = Fernet.generate_key()
+        # Сохраняем его в файл
+        with open(KEY_FILE, "wb") as f:
+            f.write(key)
+        return key
 def encrypt_message(message):
-    f = Fernet('RTTdwODdzd3mpPgUSIjSvsYrmOKrQQK8bkFRIddV-pc=')
+    key = load_or_generate_key()
+    f = Fernet(key)
     return f.encrypt(message.encode()).decode()
 
 # Расшифровка
 def decrypt_message(encrypted_text):
-    f = Fernet('RTTdwODdzd3mpPgUSIjSvsYrmOKrQQK8bkFRIddV-pc=')
-    return f.decrypt(encrypted_text.encode()).decode()
+    key = load_or_generate_key()
+    f = Fernet(key)
+    # Если строка (base64), оставляем как есть
+    # Если bytes, декодируем в строку
+    if isinstance(encrypted_text, bytes):
+        encrypted_text = encrypted_text.decode('utf-8')
+    return f.decrypt(encrypted_text)  # Возвращаем bytes
 
 def find_server():
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -28,14 +49,29 @@ def send_request(ip, message):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
             tcp_sock.connect((ip, 6666))
-            # read handshake first
             greeting = tcp_sock.recv(1024)
-            # now send request
             tcp_sock.send(message.encode('utf-8'))
-            response = tcp_sock.recv(8192).decode('utf-8')
-            print(f"\n[SERVER]: {response}")
+            response = tcp_sock.recv(8192)
+            
+            # Декодируем bytes в строку
+            response_text = response.decode('utf-8')
+            
+            # Разделяем на заголовок и зашифрованные данные
+            lines = response_text.split('\n')
+            print(f"\n[SERVER]: {lines[0]}")  # Выводим заголовок
+            
+            # Расшифровываем остальные строки (если они есть)
+            for line in lines[1:]:
+                if line.strip():  # Пропускаем пустые строки
+                    parts = line.split(' | ')
+                    try:
+                        email = decrypt_message(parts[0].strip()).decode('utf-8')
+                        pwd = decrypt_message(parts[1].strip()).decode('utf-8')
+                        print(f"  Email: {email} | Password: {pwd}")
+                    except Exception as e:
+                        print(f"  [Ошибка расшифровки]: {repr(e)}")
     except Exception as e:
-        print("Connection error:", e)
+        print("Connection error:", repr(e))
 
 def main():
     server_ip = find_server()
