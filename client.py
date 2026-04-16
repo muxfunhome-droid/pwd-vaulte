@@ -1,6 +1,8 @@
 import socket
 from cryptography.fernet import Fernet
 import os
+import sys
+import argparse
 
 KEY_FILE = '.key'
 
@@ -74,27 +76,43 @@ def send_request(ip, message):
         print("Connection error:", repr(e))
 
 def main():
+    # Настройка парсера аргументов
+    parser = argparse.ArgumentParser(description="Менеджер паролей (клиент)")
+    subparsers = parser.add_subparsers(dest="command", help="Доступные команды")
+
+    # Команда SAVE: python3 test.py SAVE email password login
+    save_parser = subparsers.add_parser('SAVE', help='Сохранить данные')
+    save_parser.add_argument('email', help='Email или название сервиса')
+    save_parser.add_argument('password', help='Пароль')
+    save_parser.add_argument('login', help='ID пользователя / Логин')
+
+    # Команда GET: python3 test.py GET login
+    get_parser = subparsers.add_parser('GET', help='Получить данные по логину')
+    get_parser.add_argument('login', help='Логин для поиска')
+
+    # Парсим аргументы из sys.argv
+    args = parser.parse_args()
+
+    # Поиск сервера
     server_ip = find_server()
     if not server_ip:
         print("Server not found.")
         return
-    print("Connected to:", server_ip)
 
-    while True:
-        choice = input("1-SAVE 2-GET 3-EXIT > ").strip().lower()
-        if choice in ('1','save'):
-            email = encrypt_message(input("email/service: "))
-            pwd = encrypt_message(input("password: "))
-            login = input("login id: ")
-            full_msg = f"SAVE {email} {pwd}; {login}"
-            send_request(server_ip, full_msg)
-        elif choice in ('2','get'):
-            login = input("login to search: ")
-            send_request(server_ip, f"GET {login}")
-        elif choice in ('3','exit'):
-            break
-        else:
-            print("Unknown command")
+    # Логика выполнения команд
+    if args.command == 'SAVE':
+        email_enc = encrypt_message(args.email)
+        pwd_enc = encrypt_message(args.password)
+        full_msg = f"SAVE {email_enc} {pwd_enc}; {args.login}"
+        send_request(server_ip, full_msg)
+        print(f"Данные для {args.login} отправлены.")
+
+    elif args.command == 'GET':
+        send_request(server_ip, f"GET {args.login}")
+
+    else:
+        # Если запущен без аргументов, выводим справку
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
